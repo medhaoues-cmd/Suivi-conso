@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#123b35">
+<meta name="description" content="Suivi semi-automatique des consommations d'une voiture hybride rechargeable.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Suivi hybride</title>
+<style>
+:root{--bg:#f4f7f5;--card:#fff;--ink:#152522;--muted:#667570;--green:#176b58;--line:#dce6e1;--orange:#b96915;--red:#a72d2d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+header{background:#123b35;color:#fff;padding:24px 18px 28px;border-radius:0 0 24px 24px}
+header .eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.8}h1{font-size:1.7rem;line-height:1.15;margin:7px 0}header p{margin:8px 0 0;color:#d6e7e1;font-size:.95rem}
+main{max-width:850px;margin:auto;padding:16px 14px 36px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 3px 12px #183e3010}
+h2{font-size:1.08rem;margin:0 0 14px}label{display:block;font-size:.86rem;color:var(--muted);margin:0 0 5px}
+.field{margin-bottom:12px}input,select{width:100%;font:inherit;border:1px solid #cbd8d2;border-radius:10px;background:#fff;color:var(--ink);padding:11px 12px;min-height:45px}
+input:focus,select:focus{outline:2px solid #80b9a7;border-color:var(--green)}
+button{font:inherit;border:0;border-radius:11px;padding:12px 14px;cursor:pointer;font-weight:650}
+.primary{background:var(--green);color:#fff;width:100%}.secondary{background:#e7f1ed;color:#174b40}.danger{background:#fff0f0;color:var(--red)}.buttonrow{display:flex;gap:8px;flex-wrap:wrap}.buttonrow button{flex:1}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.stat{border-radius:13px;background:#f3f8f5;padding:13px}.stat .k{font-size:.78rem;color:var(--muted)}.stat .v{font-size:1.3rem;font-weight:750;margin-top:3px;overflow-wrap:anywhere}.stat .unit{font-size:.78rem;color:var(--muted)}
+.note{font-size:.83rem;color:var(--muted);margin:10px 0 0}.warn{background:#fff7e9;border:1px solid #f0d7a8;border-radius:12px;padding:11px;font-size:.86rem;color:#704515;margin-top:12px}
+.record{border-top:1px solid var(--line);padding:13px 0}.record:first-child{border-top:0;padding-top:0}.recordtop{display:flex;justify-content:space-between;gap:8px;align-items:start}.recordtitle{font-weight:700}.small{font-size:.83rem;color:var(--muted)}.recordstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}.mini{background:#f6f8f7;border-radius:9px;padding:8px}.mini strong{display:block;font-size:.95rem}.mini span{font-size:.73rem;color:var(--muted)}.empty{color:var(--muted);text-align:center;padding:22px 8px}
+#photoPreview{width:100%;max-height:260px;object-fit:contain;border-radius:12px;background:#f2f4f3;margin-top:8px;display:none}
+.status{padding:10px;border-radius:10px;background:#f3f8f5;color:#35564d;font-size:.85rem;margin:8px 0;white-space:pre-wrap}
+footer{text-align:center;color:var(--muted);font-size:.78rem;padding:0 16px 28px}
+@media(min-width:650px){.layout{display:grid;grid-template-columns:1fr 1fr;gap:14px}.layout .card{margin-bottom:0}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:370px){.grid{grid-template-columns:1fr}.recordstats{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="eyebrow">Carnet de bord automobile</div><h1>Suivi hybride</h1><p>Photographiez le compteur, puis saisissez vos recharges et ravitaillements.</p></header>
+<main>
+<section class="card">
+<h2>Résumé général</h2>
+<div class="stats">
+<div class="stat"><div class="k">Distance suivie</div><div class="v" id="totalKm">0</div><div class="unit">km</div></div>
+<div class="stat"><div class="k">Électricité moyenne</div><div class="v" id="avgKwh">0,0</div><div class="unit">kWh/100 km</div></div>
+<div class="stat"><div class="k">Essence moyenne</div><div class="v" id="avgFuel">0,0</div><div class="unit">L/100 km</div></div>
+<div class="stat"><div class="k">Coût moyen</div><div class="v" id="avgCost">0,000</div><div class="unit">DT/100 km</div></div>
+</div><p class="note" id="totalCost">Coût total : 0,000 DT</p>
+</section>
+<div class="layout">
+<section class="card">
+<h2>Nouveau relevé</h2>
+<form id="entryForm">
+<div class="field">
+<label for="dashboardPhoto">1. Photo du tableau de bord</label>
+<input id="dashboardPhoto" type="file" accept="image/*" capture="environment">
+<img id="photoPreview" alt="Aperçu du tableau de bord">
+<p class="note">Prenez une photo nette où le kilométrage total (ODO) est lisible.</p>
+<button class="secondary" id="scanBtn" type="button" style="width:100%;margin-top:10px">Lire le kilométrage sur la photo</button>
+<div id="ocrStatus" class="status" aria-live="polite">Aucune photo analysée.</div>
+</div>
+<div class="grid">
+<div class="field"><label for="startKm">Compteur précédent (km)</label><input id="startKm" type="number" min="0" step="0.1" required placeholder="Rempli automatiquement"></div>
+<div class="field"><label for="endKm">Nouveau kilométrage (km)</label><input id="endKm" type="number" min="0" step="0.1" required placeholder="Lu sur la photo"></div>
+</div>
+<p class="note">Le kilométrage est reconnu automatiquement si la photo est lisible. Vérifiez la valeur proposée, car l'OCR peut se tromper.</p>
+<div class="grid">
+<div class="field"><label for="kwh">2. kWh rechargés</label><input id="kwh" type="number" min="0" step="0.01" required value="0"></div>
+<div class="field"><label for="litres">3. Litres ravitaillés</label><input id="litres" type="number" min="0" step="0.01" required value="0"></div>
+</div>
+<div class="grid">
+<div class="field"><label for="priceKwh">Prix du kWh (DT)</label><input id="priceKwh" type="number" min="0" step="0.001" value="0.400" required></div>
+<div class="field"><label for="priceFuel">Prix du litre (DT)</label><input id="priceFuel" type="number" min="0" step="0.001" value="2.525" required></div>
+</div>
+<div class="field"><label for="periodDate">Date du relevé</label><input id="periodDate" type="date" required></div>
+<div class="field"><label for="notes">Note (facultatif)</label><input id="notes" maxlength="160" placeholder="Ex. trajet Tunis-Sousse"></div>
+<button class="primary" type="submit">Enregistrer le relevé</button>
+<p class="note">Les données restent sur cet appareil et dans ce navigateur. L'analyse de la photo se fait dans le navigateur via un moteur OCR chargé depuis Internet.</p>
+<div class="warn">Pour des consommations précises, comparez des périodes suffisamment longues et essayez de retrouver un niveau de batterie et de réservoir similaire au début et à la fin. Les kWh et litres ajoutés ne sont pas toujours égaux à l'énergie réellement consommée pendant la période.</div>
+</form>
+</section>
+<section class="card">
+<h2>Historique</h2>
+<div class="buttonrow" style="margin-bottom:14px"><button class="secondary" id="exportBtn" type="button">Exporter CSV</button><button class="secondary" id="backupBtn" type="button">Sauvegarde JSON</button></div>
+<div class="field"><label for="importFile">Restaurer une sauvegarde JSON</label><input id="importFile" type="file" accept=".json,application/json"></div>
+<div id="history"><div class="empty">Aucun relevé enregistré pour le moment.</div></div>
+<div class="buttonrow" style="margin-top:12px"><button class="danger" id="clearBtn" type="button">Effacer tout l’historique</button></div>
+<p class="note">Pensez à exporter une sauvegarde. L'historique n'est pas automatiquement synchronisé entre appareils.</p>
+</section></div></main>
+<footer>Suivi hybride · Version 2.0 · Les calculs sont basés sur les valeurs saisies et le kilométrage reconnu.</footer>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script>
+const STORE_KEY='suivi-hybride-records-v2';const $=id=>document.getElementById(id);const number=v=>Number(v)||0;const fmt=(v,d=2)=>Number(v||0).toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});let records=[];
+try{records=JSON.parse(localStorage.getItem(STORE_KEY)||'[]');if(!Array.isArray(records))records=[]}catch(e){records=[]}
+const today=new Date();$('periodDate').value=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+function save(){localStorage.setItem(STORE_KEY,JSON.stringify(records));render()}
+function totals(){return records.reduce((a,r)=>{a.km+=r.distance;a.kwh+=r.kwh;a.litres+=r.litres;a.cost+=r.cost;return a},{km:0,kwh:0,litres:0,cost:0})}
+function render(){const t=totals();$('totalKm').textContent=fmt(t.km,0);$('avgKwh').textContent=fmt(t.km?t.kwh/t.km*100:0,1);$('avgFuel').textContent=fmt(t.km?t.litres/t.km*100:0,1);$('avgCost').textContent=fmt(t.km?t.cost/t.km*100:0,3);$('totalCost').textContent='Coût total : '+fmt(t.cost,3)+' DT';const hist=$('history');if(!records.length){hist.innerHTML='<div class="empty">Aucun relevé enregistré pour le moment.</div>';return}
+hist.innerHTML=[...records].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created).map(r=>`<article class="record"><div class="recordtop"><div><div class="recordtitle">${escapeHtml(r.date)} · ${fmt(r.distance,0)} km</div><div class="small">${fmt(r.startKm,0)} → ${fmt(r.endKm,0)} km${r.notes?' · '+escapeHtml(r.notes):''}</div></div><button class="danger" data-delete="${r.id}" type="button">Supprimer</button></div><div class="recordstats"><div class="mini"><strong>${fmt(r.kwh/r.distance*100,2)}</strong><span>kWh/100 km</span></div><div class="mini"><strong>${fmt(r.litres/r.distance*100,2)}</strong><span>L/100 km</span></div><div class="mini"><strong>${fmt(r.cost,3)} DT</strong><span>${fmt(r.cost/r.distance*100,3)} DT/100 km</span></div></div><div class="small">${fmt(r.kwh)} kWh · ${fmt(r.litres)} L · Électricité ${fmt(r.electricCost,3)} DT · Essence ${fmt(r.fuelCost,3)} DT</div></article>`).join('');
+hist.querySelectorAll('[data-delete]').forEach(b=>b.addEventListener('click',()=>{if(confirm('Supprimer ce relevé ?')){records=records.filter(r=>r.id!==b.dataset.delete);save()}}))}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+$('dashboardPhoto').addEventListener('change',()=>{const f=$('dashboardPhoto').files[0];if(!f)return;const url=URL.createObjectURL(f);$('photoPreview').src=url;$('photoPreview').style.display='block';$('ocrStatus').textContent='Photo chargée. Appuyez sur « Lire le kilométrage ».'});
+$('scanBtn').addEventListener('click',async()=>{
+ const f=$('dashboardPhoto').files[0];if(!f){$('ocrStatus').textContent='Prenez ou choisissez d’abord une photo du tableau de bord.';return}
+ if(!window.Tesseract){$('ocrStatus').textContent='Le moteur de reconnaissance n’a pas pu être chargé. Vérifiez votre connexion Internet et réessayez.';return}
+ $('scanBtn').disabled=true;$('ocrStatus').textContent='Analyse de la photo en cours, cela peut prendre quelques instants…';
+ try{
+  const result=await Tesseract.recognize(f,'eng',{logger:m=>{if(m.status==='recognizing text')$('ocrStatus').textContent='Lecture de la photo : '+Math.round((m.progress||0)*100)+' %'}});
+  const raw=result.data.text||'';
+  const cleaned=raw.replace(/[Oo]/g,'0').replace(/[Il|]/g,'1');
+  const nums=[...cleaned.matchAll(/(?:\d[\d\s.,]{2,}\d|\d{4,})/g)].map(m=>({raw:m[0],value:Number(m[0].replace(/[^\d]/g,''))})).filter(x=>Number.isFinite(x.value)&&x.value>=number($('startKm').value)&&x.value<1000000);
+  const unique=[...new Map(nums.map(x=>[x.value,x])).values()].sort((a,b)=>b.value-a.value);
+  if(unique.length){
+    const current=number($('startKm').value);
+    const candidate=unique.find(x=>x.value>current)||unique[0];
+    $('endKm').value=candidate.value;
+    $('ocrStatus').textContent='Kilométrage proposé : '+candidate.value.toLocaleString('fr-FR')+' km. Vérifiez la valeur dans le champ avant d’enregistrer.';
+    if(unique.length>1)$('ocrStatus').textContent+=' Autres nombres reconnus : '+unique.slice(0,5).map(x=>x.value.toLocaleString('fr-FR')).join(', ')+'. Si la valeur est incorrecte, corrigez-la manuellement.';
+  }else{$('ocrStatus').textContent='Aucun kilométrage évident n’a été reconnu. Essayez une photo plus nette, ou saisissez le kilométrage dans le champ.'}
+ }catch(err){$('ocrStatus').textContent='La lecture automatique a échoué. Essayez une photo plus nette ou saisissez le kilométrage manuellement.'}
+ $('scanBtn').disabled=false;
+});
+$('entryForm').addEventListener('submit',e=>{e.preventDefault();const startKm=number($('startKm').value),endKm=number($('endKm').value),distance=endKm-startKm,kwh=number($('kwh').value),litres=number($('litres').value),priceKwh=number($('priceKwh').value),priceFuel=number($('priceFuel').value);
+if(distance<=0){alert('Le kilométrage final doit être supérieur au précédent.');return}if([kwh,litres,priceKwh,priceFuel].some(v=>v<0)){alert('Les valeurs ne peuvent pas être négatives.');return}
+const electricCost=kwh*priceKwh,fuelCost=litres*priceFuel;records.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),created:Date.now(),date:$('periodDate').value,startKm,endKm,distance,kwh,litres,priceKwh,priceFuel,electricCost,fuelCost,cost:electricCost+fuelCost,notes:$('notes').value.trim()});save();$('startKm').value=endKm;$('endKm').value='';$('kwh').value='0';$('litres').value='0';$('notes').value='';$('dashboardPhoto').value='';$('photoPreview').style.display='none';$('ocrStatus').textContent='Relevé enregistré. Vous pouvez prendre la prochaine photo.'});
+function download(name,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('exportBtn').addEventListener('click',()=>{const rows=[['Date','Compteur initial km','Compteur final km','Distance km','Recharge kWh','Essence L','kWh/100 km','L/100 km','Prix kWh DT','Prix litre DT','Coût électricité DT','Coût essence DT','Coût total DT','Coût DT/100 km','Note']];records.forEach(r=>rows.push([r.date,r.startKm,r.endKm,r.distance,r.kwh,r.litres,r.kwh/r.distance*100,r.litres/r.distance*100,r.priceKwh,r.priceFuel,r.electricCost,r.fuelCost,r.cost,r.cost/r.distance*100,r.notes]));download('historique-consommation-hybride.csv','\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n'),'text/csv;charset=utf-8')});
+$('backupBtn').addEventListener('click',()=>download('sauvegarde-suivi-hybride.json',JSON.stringify({version:2,exportedAt:new Date().toISOString(),records},null,2),'application/json'));
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text()),incoming=Array.isArray(data)?data:data.records;if(!Array.isArray(incoming))throw Error('format');if(!confirm('Ajouter les relevés de cette sauvegarde à l’historique actuel ?'))return;const existing=new Set(records.map(r=>r.id));incoming.forEach(r=>{if(r&&r.id&&!existing.has(r.id)&&Number(r.distance)>0)records.push(r)});save();alert('Sauvegarde restaurée.')}catch(err){alert('Fichier de sauvegarde invalide.')}e.target.value=''});
+$('clearBtn').addEventListener('click',()=>{if(confirm('Effacer définitivement tous les relevés ? Exportez une sauvegarde avant de continuer.')){records=[];save()}});
+const latest=records.reduce((a,r)=>!a||r.created>a.created?r:a,null);if(latest)$('startKm').value=latest.endKm;
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));
+render();
+</script>
+</body></html>
